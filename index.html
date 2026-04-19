@@ -5,171 +5,217 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>認証</title>
 <style>
-    * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-    }
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
 
-    body {
-        background: #f5f5f7;
-        font-family: sans-serif;
-        min-height: 100vh;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 20px;
-    }
+body {
+  background: #f7f8fa;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
 
-    .container {
-        width: 100%;
-        max-width: 480px;
-    }
+.box {
+  background: #fff;
+  width: 100%;
+  max-width: 500px;
+  border-radius: 24px;
+  padding: 30px 24px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+}
 
-    .card {
-        background: white;
-        border-radius: 20px;
-        padding: 24px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    }
+.title {
+  text-align: center;
+  font-size: 19px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: #222;
+}
 
-    .title {
-        text-align: center;
-        font-size: 18px;
-        margin-bottom: 16px;
-        font-weight: bold;
-    }
+.desc {
+  text-align: center;
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 20px;
+}
 
-    .question {
-        background: #eef5ff;
-        padding: 16px;
-        border-radius: 12px;
-        text-align: center;
-        margin-bottom: 20px;
-    }
+.target-area {
+  background: #eef6ff;
+  border-radius: 16px;
+  padding: 20px;
+  text-align: center;
+  margin-bottom: 24px;
+}
 
-    .q-text {
-        font-size: 26px;
-        letter-spacing: 6px;
-        margin-top: 8px;
-    }
+.target-label {
+  font-size: 13px;
+  color: #555;
+  margin-bottom: 8px;
+}
 
-    .grid {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 10px;
-        margin-bottom: 20px;
-    }
+.target-nums {
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: 10px;
+  color: #007aff;
+}
 
-    .btn {
-        padding: 16px 8px;
-        border: 1px solid #ddd;
-        border-radius: 12px;
-        background: white;
-        font-size: 20px;
-        cursor: pointer;
-        transition: 0.2s;
-    }
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 24px;
+}
 
-    .btn.selected {
-        background: #007bff;
-        color: white;
-        border-color: #007bff;
-    }
+.num-btn {
+  aspect-ratio: 1;
+  border-radius: 16px;
+  border: 2px solid #e0e0e0;
+  background: #fff;
+  font-size: 22px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
 
-    .submit {
-        width: 100%;
-        padding: 14px;
-        background: #007bff;
-        color: white;
-        border: none;
-        border-radius: 12px;
-        font-size: 16px;
-        cursor: pointer;
-    }
+.num-btn:active {
+  transform: scale(0.95);
+}
 
-    .submit:disabled {
-        background: #ccc;
-        cursor: not-allowed;
-    }
+.num-btn.selected {
+  background: #007aff;
+  color: #fff;
+  border-color: #007aff;
+}
+
+.submit-btn {
+  width: 100%;
+  padding: 18px;
+  border-radius: 18px;
+  background: #007aff;
+  color: #fff;
+  font-size: 17px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.submit-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.submit-btn:active {
+  transform: scale(0.98);
+}
+
+.status {
+  text-align: center;
+  margin-top: 16px;
+  font-size: 13px;
+  color: #888;
+}
 </style>
 </head>
+
 <body>
-<div class="container">
-    <div class="card">
-        <div class="title">表示された文字をすべて選択</div>
-        <div class="question">
-            <div>対象：</div>
-            <div class="q-text" id="target"></div>
-        </div>
-        <div class="grid" id="grid"></div>
-        <button id="submit" disabled>確認</button>
-    </div>
+<div class="box">
+  <div class="title">選択認証</div>
+  <div class="desc">表示された数字をすべて選んでください</div>
+
+  <div class="target-area">
+    <div class="target-label">対象</div>
+    <div class="target-nums" id="target"></div>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <button class="submit-btn" id="submit" disabled>確認</button>
+  <div class="status" id="status">選択してください</div>
 </div>
 
 <script>
-    // ====================== 这里改成你要跳转的目标网址 ======================
-    const TARGET_URL = "https://www.google.com";
+// ==========================
+// 目標URLリスト（複数設定OK）
+// ==========================
+const TARGET_LIST = [
+  "https://www.google.com",
+  "https://www.youtube.com",
+  "https://www.amazon.com"
+];
 
-    function makeCaptcha() {
-        const nums = "0123456789".split("");
-        const needCount = 2;
-        const targets = [];
+// ランダムで一つ選ぶ
+function getRandomTarget() {
+  return TARGET_LIST[Math.floor(Math.random() * TARGET_LIST.length)];
+}
 
-        while (targets.length < needCount) {
-            const n = nums[Math.floor(Math.random() * nums.length)];
-            if (!targets.includes(n)) targets.push(n);
-        }
+// 認証生成
+function generate() {
+  const numbers = "0123456789".split("");
+  const need = 2;
+  const target = [];
 
-        const options = [...targets];
-        while (options.length < 8) {
-            const n = nums[Math.floor(Math.random() * nums.length)];
-            if (!options.includes(n)) options.push(n);
-        }
+  while (target.length < need) {
+    const n = numbers[Math.floor(Math.random() * numbers.length)];
+    if (!target.includes(n)) target.push(n);
+  }
 
-        options.sort(() => Math.random() - 0.5);
-        return { targets, options, needCount };
+  const options = [...target];
+  while (options.length < 8) {
+    const n = numbers[Math.floor(Math.random() * numbers.length)];
+    if (!options.includes(n)) options.push(n);
+  }
+
+  options.sort(() => Math.random() - 0.5);
+  return { target, options, need };
+}
+
+const { target, options, need } = generate();
+document.getElementById("target").innerText = target.join("   ");
+
+const grid = document.getElementById("grid");
+const submit = document.getElementById("submit");
+const status = document.getElementById("status");
+let selected = [];
+
+options.forEach(o => {
+  const btn = document.createElement("button");
+  btn.className = "num-btn";
+  btn.innerText = o;
+  btn.dataset.v = o;
+
+  btn.onclick = () => {
+    if (btn.classList.contains("selected")) {
+      btn.classList.remove("selected");
+      selected = selected.filter(x => x !== o);
+    } else {
+      btn.classList.add("selected");
+      selected.push(o);
     }
 
-    const cap = makeCaptcha();
-    const targets = cap.targets;
-    const options = cap.options;
-    const needCount = cap.needCount;
+    submit.disabled = selected.length !== need;
+    status.innerText = `${selected.length}/${need} 個選択中`;
+  };
 
-    document.getElementById("target").innerText = targets.join(" ");
+  grid.appendChild(btn);
+});
 
-    const grid = document.getElementById("grid");
-    const submit = document.getElementById("submit");
-    let selected = [];
-
-    options.forEach(opt => {
-        const b = document.createElement("button");
-        b.className = "btn";
-        b.innerText = opt;
-        b.dataset.val = opt;
-
-        b.onclick = function () {
-            if (this.classList.contains("selected")) {
-                this.classList.remove("selected");
-                selected = selected.filter(x => x !== this.dataset.val);
-            } else {
-                this.classList.add("selected");
-                selected.push(this.dataset.val);
-            }
-            submit.disabled = selected.length !== needCount;
-        };
-
-        grid.appendChild(b);
-    });
-
-    submit.onclick = function () {
-        const success = targets.every(t => selected.includes(t)) && selected.length === targets.length;
-        if (success) {
-            location.href = TARGET_URL;
-        } else {
-            alert("認証に失敗しました");
-        }
-    };
+submit.onclick = () => {
+  const ok = target.every(t => selected.includes(t)) && selected.length === target.length;
+  if (ok) {
+    status.innerText = "認証成功！";
+    location.href = getRandomTarget();
+  } else {
+    alert("認証に失敗しました");
+  }
+};
 </script>
 </body>
 </html>
