@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>認証</title>
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        background: #f5f5f7;
+        font-family: sans-serif;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+    }
+
+    .container {
+        width: 100%;
+        max-width: 480px;
+    }
+
+    .card {
+        background: white;
+        border-radius: 20px;
+        padding: 24px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .title {
+        text-align: center;
+        font-size: 18px;
+        margin-bottom: 16px;
+        font-weight: bold;
+    }
+
+    .question {
+        background: #eef5ff;
+        padding: 16px;
+        border-radius: 12px;
+        text-align: center;
+        margin-bottom: 20px;
+    }
+
+    .q-text {
+        font-size: 26px;
+        letter-spacing: 6px;
+        margin-top: 8px;
+    }
+
+    .grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 10px;
+        margin-bottom: 20px;
+    }
+
+    .btn {
+        padding: 16px 8px;
+        border: 1px solid #ddd;
+        border-radius: 12px;
+        background: white;
+        font-size: 20px;
+        cursor: pointer;
+        transition: 0.2s;
+    }
+
+    .btn.selected {
+        background: #007bff;
+        color: white;
+        border-color: #007bff;
+    }
+
+    .submit {
+        width: 100%;
+        padding: 14px;
+        background: #007bff;
+        color: white;
+        border: none;
+        border-radius: 12px;
+        font-size: 16px;
+        cursor: pointer;
+    }
+
+    .submit:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+    }
+</style>
+</head>
+<body>
+<div class="container">
+    <div class="card">
+        <div class="title">表示された文字をすべて選択</div>
+        <div class="question">
+            <div>対象：</div>
+            <div class="q-text" id="target"></div>
+        </div>
+        <div class="grid" id="grid"></div>
+        <button id="submit" disabled>確認</button>
+    </div>
+</div>
+
+<script>
+    // ====================== 这里改成你要跳转的目标网址 ======================
+    const TARGET_URL = "https://www.google.com";
+
+    function makeCaptcha() {
+        const nums = "0123456789".split("");
+        const needCount = 2;
+        const targets = [];
+
+        while (targets.length < needCount) {
+            const n = nums[Math.floor(Math.random() * nums.length)];
+            if (!targets.includes(n)) targets.push(n);
+        }
+
+        const options = [...targets];
+        while (options.length < 8) {
+            const n = nums[Math.floor(Math.random() * nums.length)];
+            if (!options.includes(n)) options.push(n);
+        }
+
+        options.sort(() => Math.random() - 0.5);
+        return { targets, options, needCount };
+    }
+
+    const cap = makeCaptcha();
+    const targets = cap.targets;
+    const options = cap.options;
+    const needCount = cap.needCount;
+
+    document.getElementById("target").innerText = targets.join(" ");
+
+    const grid = document.getElementById("grid");
+    const submit = document.getElementById("submit");
+    let selected = [];
+
+    options.forEach(opt => {
+        const b = document.createElement("button");
+        b.className = "btn";
+        b.innerText = opt;
+        b.dataset.val = opt;
+
+        b.onclick = function () {
+            if (this.classList.contains("selected")) {
+                this.classList.remove("selected");
+                selected = selected.filter(x => x !== this.dataset.val);
+            } else {
+                this.classList.add("selected");
+                selected.push(this.dataset.val);
+            }
+            submit.disabled = selected.length !== needCount;
+        };
+
+        grid.appendChild(b);
+    });
+
+    submit.onclick = function () {
+        const success = targets.every(t => selected.includes(t)) && selected.length === targets.length;
+        if (success) {
+            location.href = TARGET_URL;
+        } else {
+            alert("認証に失敗しました");
+        }
+    };
+</script>
+</body>
+</html>
